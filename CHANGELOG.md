@@ -4,6 +4,7 @@
 
 ### Features
 
+- **image:** 上传图片时支持浏览器端 WebP 压缩，自动检测浏览器能力，用户可自由开关，压缩失败时自动降级 ([3e2e8d5](https://github.com/34892002/edgeKey/commit/3e2e8d5))
 - **file-upload:** 选择文件组件 ([74842cd](https://github.com/34892002/edgeKey/commit/74842cd))
 - **s3:** 新增s3协议文件管理，提供文件上传、删除功能 ([2c3a332](https://github.com/34892002/edgeKey/commit/2c3a332))
 
