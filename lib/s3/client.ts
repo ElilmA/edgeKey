@@ -8,7 +8,7 @@ export interface S3ClientConfig {
   region?: string;
   publicDomain?: string;
   pathPrefix?: string;
-  cacheControl?: string;
+  cacheControl: string;
 }
 
 /**
@@ -276,6 +276,6 @@ export function createS3ClientFromConfig(config: {
     region: config.region || "auto",
     publicDomain: config.publicDomain || undefined,
     pathPrefix: config.pathPrefix || undefined,
-    cacheControl: config.cacheControl || undefined,
+    cacheControl: config.cacheControl ?? "",
   });
 }

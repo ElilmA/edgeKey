@@ -70,6 +70,15 @@ export function registerMediaRoutes(app: Hono) {
    */
   app.get("/media/proxy/*", async (c) => {
     try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const cache: Cache = (caches as any).default;
+
+      // 1. Check edge cache first — skip S3 and D1 entirely on hit
+      const cached = await cache.match(c.req.raw);
+      if (cached) {
+        return cached;
+      }
+
       const database = (c.env as { DB?: D1Database } | undefined)?.DB;
       if (!database) {
         return c.json({ message: "数据库绑定缺失", code: "D1_BINDING_MISSING" }, 500);
@@ -197,10 +206,16 @@ export function registerMediaRoutes(app: Hono) {
         headers.set("ETag", etag);
       }
 
-      return new Response(body, {
+      const response = new Response(body, {
         status: 200,
         headers,
       });
+
+      // 2. Write to edge cache (clone because put() consumes the body)
+      // Only cache successful responses with cacheable Cache-Control
+      c.executionCtx.waitUntil(cache.put(c.req.raw, response.clone()));
+
+      return response;
     } catch (error) {
       logger.error(error instanceof Error ? error : new Error(String(error)), {
         event: "media.proxy.failed",

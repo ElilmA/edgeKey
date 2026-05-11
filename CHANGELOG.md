@@ -1,5 +1,12 @@
 # Change Log
 
+## v1.3.3 (2026-05-11)
+
+### Bug Fixes
+
+- **media:** 修复异常导致的 CDN 不缓存，命中边缘缓存后大幅降低延迟和 S3 请求开销
+- **media:** S3 响应体先完整缓冲再返回，修复流中途断开时异常逃逸 try-catch 导致 `Worker threw exception` 的问题
+
 ## v1.3.0 (2026-05-10)
 
 ### Features
