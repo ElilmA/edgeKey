@@ -15,7 +15,6 @@ import { createAlipayAdapter, queryAlipayTrade } from "./alipay";
 import { createStripeAdapter } from "./stripe";
 import { deliverOrder } from "../delivery/service";
 import { findOrderRecord, updateOrderPayment } from "../order/repository";
-import { notifyOrderPaid as _notifyOrderPaid } from "../email/service";
 
 const defaultPaymentConfigs: Record<PaymentProvider, PaymentConfigValue> = {
   BEPUSDT: {
