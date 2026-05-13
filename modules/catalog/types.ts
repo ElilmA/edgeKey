@@ -1,3 +1,5 @@
+export type ProductDeliveryTypeValue = "CARD_AUTO" | "FIXED_CARD" | "MANUAL";
+
 export interface ProductSummary {
   id: number;
   categoryId?: number | null;
@@ -6,6 +8,7 @@ export interface ProductSummary {
   slug: string;
   coverImage?: string | null;
   price: number;
+  deliveryType: ProductDeliveryTypeValue;
   stockMode: "FINITE" | "UNLIMITED";
   availableStock: number;
 }
@@ -27,6 +30,7 @@ export interface AdminProductSummary {
   coverImage?: string | null;
   price: number;
   status: "DRAFT" | "ACTIVE" | "INACTIVE";
+  deliveryType: ProductDeliveryTypeValue;
   minBuy: number;
   maxBuy: number;
   sort: number;

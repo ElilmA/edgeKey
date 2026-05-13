@@ -25,8 +25,11 @@
             <div class="text-sm text-base-content/60">当前价格</div>
             <div class="text-3xl font-bold text-primary">{{ formatCents(product.price) }}</div>
           </div>
-          <div class="text-sm text-base-content/70">限购 {{ product.minBuy }} - {{ product.maxBuy }} 件</div>
-
+          <dev class="flex">
+              <!-- <div class="text-sm text-base-content/70">限购 {{ product.minBuy }} - {{ product.maxBuy }} 件</div> -->
+              <div class="text-sm text-base-content/70">限购 {{ product.maxBuy }} 件，</div>
+              <div class="text-sm text-base-content/70">发货方式：{{ getDeliveryTypeLabel(product.deliveryType) }}</div>
+          </dev>
           <div class="divider my-0"></div>
 
           <label class="flex flex-col gap-1.5">
@@ -62,7 +65,20 @@
             <div class="grid gap-3 md:grid-cols-2">
               <label v-for="channel in epayChannels" :key="channel.value" class="rounded-box border border-base-300 p-4">
                 <div class="flex items-center justify-between gap-3">
-                  <span>{{ channel.label }}</span>
+                  <span class="flex items-center gap-2">
+                    <svg v-if="channel.icon === 'alipay'" class="h-5 w-5 text-[#1677ff]" viewBox="0 0 1024 1024" fill="currentColor" aria-hidden="true">
+                      <path d="M512 64C264.6 64 64 264.6 64 512s200.6 448 448 448 448-200.6 448-448S759.4 64 512 64Zm234.5 610.9c-26.2-8.6-61.5-21.8-101.9-39.9-45.6 52.5-103.4 83.2-173.5 83.2-76.6 0-126.2-40.5-126.2-98.8 0-56.6 47.8-99.4 124.5-99.4 38.1 0 79.7 8.3 124.8 24.9 18.4-32.3 33.1-69.8 44.1-112.5H318.7v-58.8h169.1v-61.9H282.2v-60.2h205.6v-82.1h67.3v82.1h207.1v60.2H555.1v61.9h171.6c-14.8 76.6-39.3 140.7-73.5 192.3 38.5 16.4 77.9 31.1 118.2 44.2l-24.9 64.8ZM468.8 579.2c-39.4 0-62.5 15.2-62.5 39.7 0 25.9 24.3 43.5 63.7 43.5 43.1 0 79.7-18.1 109.8-54.4-42.1-19.2-79.1-28.8-111-28.8Z" />
+                    </svg>
+                    <svg v-else-if="channel.icon === 'wechat'" class="h-5 w-5" viewBox="0 0 1024 1024" aria-hidden="true">
+                      <path fill="#07c160" d="M420 190c-190 0-344 123-344 276 0 88 51 166 131 217l-31 94 112-55c41 13 86 20 132 20 190 0 344-123 344-276S610 190 420 190Z" />
+                      <path fill="#07c160" d="M690 431c151 0 274 97 274 216 0 70-42 132-108 171l25 77-90-45c-32 9-66 14-101 14-151 0-274-97-274-217s123-216 274-216Z" />
+                      <circle cx="300" cy="380" r="34" fill="#fff" />
+                      <circle cx="520" cy="380" r="34" fill="#fff" />
+                      <circle cx="606" cy="590" r="28" fill="#fff" />
+                      <circle cx="778" cy="590" r="28" fill="#fff" />
+                    </svg>
+                    {{ channel.label }}
+                  </span>
                   <input v-model="form.paymentChannel" type="radio" class="radio radio-primary radio-sm" :value="channel.value" />
                 </div>
               </label>
@@ -71,12 +87,14 @@
 
 
 
-          <p v-if="product.stockMode === 'FINITE' && product.availableStock >= 0 && product.availableStock < 10" class="text-sm" :class="product.availableStock === 0 ? 'text-error' : 'text-warning'">
+          <p v-if="product.deliveryType === 'CARD_AUTO' && product.availableStock >= 0 && product.availableStock < 10" class="text-sm" :class="product.availableStock === 0 ? 'text-error' : 'text-warning'">
             {{ product.availableStock === 0 ? '商品都卖光了，看看其他商品' : `库存紧张，仅剩 ${product.availableStock} 件` }}
           </p>
+          <p v-else-if="product.deliveryType === 'FIXED_CARD'" class="text-sm text-success">自动发货，库存充足。</p>
+          <p v-else-if="product.deliveryType === 'MANUAL'" class="text-sm text-success">{{ product.manualDeliveryHint || '支付后，客服将尽快为您处理订单，请耐心等待。' }}</p>
 
-          <AppButton variant="primary" :loading="submitting" :disabled="!paymentMethods.length || (product.stockMode === 'FINITE' && product.availableStock === 0)" @click="handleCreateOrder">
-            {{ product.stockMode === 'FINITE' && product.availableStock === 0 ? '已售罄' : '提交订单' }}
+          <AppButton variant="primary" :loading="submitting" :disabled="!paymentMethods.length || (product.deliveryType === 'CARD_AUTO' && product.availableStock === 0)" @click="handleCreateOrder">
+            {{ product.deliveryType === 'CARD_AUTO' && product.availableStock === 0 ? '已售罄' : '提交订单' }}
           </AppButton>
           <p v-if="!paymentMethods.length" class="text-sm text-warning">当前没有可用支付方式，请联系管理员启用支付配置。</p>
           <p v-if="errorMessage" class="text-sm text-error">{{ errorMessage }}</p>
@@ -106,36 +124,48 @@ const { product, paymentMethods } = useData<Data>();
 const submitting = ref(false);
 const errorMessage = ref("");
 const epayChannels = [
-  { value: "alipay", label: "支付宝" },
-  { value: "wxpay", label: "微信支付" },
+  { value: "alipay", label: "支付宝", icon: "alipay" },
+  { value: "wxpay", label: "微信", icon: "wechat" },
 ] as const;
-
-
 
 const form = reactive({
   quantity: product?.minBuy ?? 1,
   contactValue: "",
   buyerNote: "",
-  paymentProvider: (paymentMethods[0]?.provider ?? "BEPUSDT") as PaymentProvider,
-  paymentChannel: "alipay_h5",
+  paymentProvider: paymentMethods[0]?.provider ?? "",
+  paymentChannel: getDefaultPaymentChannel(paymentMethods[0]?.provider ?? ""),
 });
 
+function getDeliveryTypeLabel(type: string) {
+  return ({ CARD_AUTO: "自动发货", FIXED_CARD: "自动发货", MANUAL: "人工发货" } as Record<string, string>)[type] || type;
+}
+
 let mobile = false;
+
+function getDefaultPaymentChannel(provider: PaymentProvider | "") {
+  if (provider === "EPAY") return "alipay";
+  if (provider === "ALIPAY") return mobile ? "alipay_h5" : "alipay_pc";
+  return "";
+}
+
 onMounted(() => {
   mobile = isMobile();
-  form.paymentChannel = mobile ? "alipay_h5" : "alipay_pc";
+  form.paymentChannel = getDefaultPaymentChannel(form.paymentProvider);
 });
 
 watch(() => form.paymentProvider, (provider) => {
-  if (provider === "EPAY") form.paymentChannel = "alipay";
-  else if (provider === "ALIPAY") form.paymentChannel = mobile ? "alipay_h5" : "alipay_pc";
-  else form.paymentChannel = "";
+  form.paymentChannel = getDefaultPaymentChannel(provider);
 });
 
 const descriptionHtml = formatDescriptionHtml(product?.description || "");
 
 async function handleCreateOrder() {
-  if (!product) return;
+  if (!product || submitting.value) return;
+
+  if (!form.paymentProvider) {
+    errorMessage.value = "当前没有可用支付方式，请联系管理员启用支付配置。";
+    return;
+  }
 
   const contactEmail = form.contactValue.trim();
   if (!contactEmail) {

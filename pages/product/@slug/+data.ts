@@ -10,8 +10,14 @@ export async function data(pageContext: {
 }) {
   const product = await getProductBySlug(pageContext.routeParams.slug, pageContext.prisma);
 
+  const paymentMethods = product
+    ? (await listEnabledPaymentMethods(pageContext.prisma))
+      .filter((item) => item.enabled)
+      .sort((a, b) => Number(b.provider === "EPAY") - Number(a.provider === "EPAY"))
+    : [];
+
   return {
     product,
-    paymentMethods: product ? (await listEnabledPaymentMethods(pageContext.prisma)).filter((item) => item.enabled) : [],
+    paymentMethods,
   };
 }

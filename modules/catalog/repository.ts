@@ -99,6 +99,10 @@ export function upsertProductRecord(
     description?: string | null;
     price: number;
     status: "DRAFT" | "ACTIVE" | "INACTIVE";
+    deliveryType: "CARD_AUTO" | "FIXED_CARD" | "MANUAL";
+    fixedDeliveryContent?: string | null;
+    manualDeliveryHint?: string | null;
+    stockMode: "FINITE" | "UNLIMITED";
     minBuy: number;
     maxBuy: number;
     sort: number;
@@ -114,6 +118,10 @@ export function upsertProductRecord(
     description: input.description ?? null,
     price: input.price,
     status: input.status,
+    deliveryType: input.deliveryType,
+    fixedDeliveryContent: input.fixedDeliveryContent ?? null,
+    manualDeliveryHint: input.manualDeliveryHint ?? null,
+    stockMode: input.stockMode,
     minBuy: input.minBuy,
     maxBuy: input.maxBuy,
     sort: input.sort,

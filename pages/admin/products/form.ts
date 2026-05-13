@@ -8,6 +8,9 @@ export interface ProductFormState {
   description: string;
   price: number;
   status: "DRAFT" | "ACTIVE" | "INACTIVE";
+  deliveryType: "CARD_AUTO" | "FIXED_CARD" | "MANUAL";
+  fixedDeliveryContent: string;
+  manualDeliveryHint: string;
   minBuy: number;
   maxBuy: number;
   sort: number;
@@ -25,6 +28,9 @@ export function createProductFormState(input?: Partial<ProductFormState>): Produ
     description: input?.description ?? "",
     price: input?.price ?? 0,
     status: input?.status ?? "DRAFT",
+    deliveryType: input?.deliveryType ?? "CARD_AUTO",
+    fixedDeliveryContent: input?.fixedDeliveryContent ?? "",
+    manualDeliveryHint: input?.manualDeliveryHint ?? "",
     minBuy: input?.minBuy ?? 1,
     maxBuy: input?.maxBuy ?? 1,
     sort: input?.sort ?? 0,

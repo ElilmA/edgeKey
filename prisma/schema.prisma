@@ -26,6 +26,7 @@ enum ProductStatus {
 
 enum ProductDeliveryType {
   CARD_AUTO
+  FIXED_CARD
   MANUAL
 }
 
@@ -95,6 +96,7 @@ enum DeliveryStatus {
 
 enum DeliveryRecordType {
   CARD
+  FIXED_CARD
   MANUAL
 }
 
@@ -159,6 +161,8 @@ model Product {
   price             Int
   status            ProductStatus       @default(DRAFT)
   deliveryType      ProductDeliveryType @default(CARD_AUTO)
+  fixedDeliveryContent String?
+  manualDeliveryHint String?
   stockMode         ProductStockMode    @default(FINITE)
   minBuy            Int                 @default(1)
   maxBuy            Int                 @default(1)

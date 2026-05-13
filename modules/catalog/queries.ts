@@ -1,6 +1,14 @@
 import type { PrismaClient } from "../../generated/prisma/client";
 import { findProductRecordById, listAdminProductRecords, listCategoryRecords, listHomeCategoryRecords } from "./repository";
-import type { AdminProductSummary, CategorySummary, ProductSummary } from "./types";
+import type { AdminProductSummary, CategorySummary, ProductDeliveryTypeValue, ProductSummary } from "./types";
+
+function getAvailableStock(item: { deliveryType: string; stockMode: string; _count: { cards: number } }) {
+  if (item.deliveryType !== "CARD_AUTO" || item.stockMode === "UNLIMITED") {
+    return -1;
+  }
+
+  return item._count.cards;
+}
 
 export async function listHomeProducts(prisma: PrismaClient): Promise<ProductSummary[]> {
   const records = await prisma.product.findMany({
@@ -29,8 +37,9 @@ export async function listHomeProducts(prisma: PrismaClient): Promise<ProductSum
     slug: item.slug,
     coverImage: item.coverImage,
     price: item.price,
+    deliveryType: item.deliveryType as ProductDeliveryTypeValue,
     stockMode: item.stockMode as "FINITE" | "UNLIMITED",
-    availableStock: item.stockMode === "UNLIMITED" ? -1 : item._count.cards,
+    availableStock: getAvailableStock(item),
   }));
 }
 
@@ -71,6 +80,7 @@ export async function listAdminProducts(prisma: PrismaClient): Promise<AdminProd
     coverImage: item.coverImage,
     price: item.price,
     status: item.status,
+    deliveryType: item.deliveryType as ProductDeliveryTypeValue,
     minBuy: item.minBuy,
     maxBuy: item.maxBuy,
     sort: item.sort,
@@ -95,6 +105,10 @@ export async function getAdminProductDetail(prisma: PrismaClient, id: number) {
     description: record.description,
     price: record.price,
     status: record.status,
+    deliveryType: record.deliveryType as ProductDeliveryTypeValue,
+    fixedDeliveryContent: record.fixedDeliveryContent,
+    manualDeliveryHint: record.manualDeliveryHint,
+    stockMode: record.stockMode as "FINITE" | "UNLIMITED",
     minBuy: record.minBuy,
     maxBuy: record.maxBuy,
     sort: record.sort,
@@ -137,7 +151,9 @@ export async function getProductDetailBySlug(prisma: PrismaClient, slug: string)
     maxBuy: record.maxBuy,
     sort: record.sort,
     purchaseNote: record.purchaseNote,
+    deliveryType: record.deliveryType as ProductDeliveryTypeValue,
+    manualDeliveryHint: record.manualDeliveryHint,
     stockMode: record.stockMode as "FINITE" | "UNLIMITED",
-    availableStock: record.stockMode === "UNLIMITED" ? -1 : record._count.cards,
+    availableStock: getAvailableStock(record),
   };
 }

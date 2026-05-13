@@ -181,6 +181,9 @@ export async function saveProduct(input: {
   description?: string;
   price: number;
   status: "DRAFT" | "ACTIVE" | "INACTIVE";
+  deliveryType?: "CARD_AUTO" | "FIXED_CARD" | "MANUAL";
+  fixedDeliveryContent?: string;
+  manualDeliveryHint?: string;
   minBuy: number;
   maxBuy: number;
   sort?: number;
@@ -189,7 +192,7 @@ export async function saveProduct(input: {
   const adminContext = getAdminContext();
   const { prisma } = adminContext;
   const adminId = Number(adminContext.session?.user?.id);
-  const { name } = validateProductInput(input);
+  const { name, deliveryType, fixedDeliveryContent } = validateProductInput(input);
 
   const slug = slugify(input.slug?.trim() || name);
   if (!slug) {
@@ -198,6 +201,53 @@ export async function saveProduct(input: {
 
   const minBuy = Number.isFinite(input.minBuy) ? Math.max(1, Math.floor(input.minBuy)) : 1;
   const maxBuy = Number.isFinite(input.maxBuy) ? Math.max(minBuy, Math.floor(input.maxBuy)) : minBuy;
+  const stockMode = deliveryType === "CARD_AUTO" ? "FINITE" : "UNLIMITED";
+
+  if (input.id) {
+    const existingProduct = await prisma.product.findUnique({
+      where: { id: input.id },
+      select: {
+        deliveryType: true,
+        fixedDeliveryContent: true,
+      },
+    });
+
+    if (!existingProduct) {
+      throw notFoundError("商品不存在", "PRODUCT_NOT_FOUND");
+    }
+
+    const deliveryTypeChanged = existingProduct.deliveryType !== deliveryType;
+    const fixedDeliveryContentChanged =
+      (existingProduct.fixedDeliveryContent?.trim() || "") !==
+      (deliveryType === "FIXED_CARD" ? fixedDeliveryContent : "");
+
+    if (deliveryTypeChanged || fixedDeliveryContentChanged) {
+      const processingOrder = await prisma.order.findFirst({
+        where: {
+          productId: input.id,
+          OR: [
+            {
+              paymentStatus: "UNPAID",
+              status: { not: "CLOSED" },
+            },
+            {
+              paymentStatus: "PAID",
+              deliveryStatus: { not: "DELIVERED" },
+            },
+          ],
+        },
+        orderBy: { id: "desc" },
+        select: { orderNo: true },
+      });
+
+      if (processingOrder) {
+        throw conflictError(
+          `订单 ${processingOrder.orderNo} 处于处理中状态，发货配置已锁定。如需变更，请先关闭该订单。`,
+          "PRODUCT_DELIVERY_CONFIG_LOCKED",
+        );
+      }
+    }
+  }
 
   const record = await upsertProductRecord(prisma, {
     id: input.id,
@@ -209,6 +259,10 @@ export async function saveProduct(input: {
     description: input.description?.trim() || null,
     price: Math.floor(input.price),
     status: input.status,
+    deliveryType,
+    fixedDeliveryContent: deliveryType === "FIXED_CARD" ? fixedDeliveryContent : null,
+    manualDeliveryHint: deliveryType === "MANUAL" ? input.manualDeliveryHint?.trim() || null : null,
+    stockMode,
     minBuy,
     maxBuy,
     sort: Number.isFinite(input.sort) ? Math.floor(input.sort ?? 0) : 0,
@@ -239,6 +293,10 @@ export async function saveProduct(input: {
     description: record.description,
     price: record.price,
     status: record.status,
+    deliveryType: record.deliveryType,
+    fixedDeliveryContent: record.fixedDeliveryContent,
+    manualDeliveryHint: record.manualDeliveryHint,
+    stockMode: record.stockMode,
     minBuy: record.minBuy,
     maxBuy: record.maxBuy,
     sort: record.sort,
@@ -267,7 +325,7 @@ export async function deleteProduct(input: { id: number }) {
   }
 
   if (product._count.orders > 0) {
-    throw conflictError("商品已有历史订单，无法删除，建议改为下架", "PRODUCT_HAS_ORDERS");
+    throw conflictError("商品已有订单记录，不能删除。你可以将商品下架。", "PRODUCT_HAS_ORDERS");
   }
 
   if (product._count.cards > 0) {

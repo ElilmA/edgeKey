@@ -15,7 +15,6 @@ import { createAlipayAdapter, queryAlipayTrade } from "./alipay";
 import { createStripeAdapter } from "./stripe";
 import { deliverOrder } from "../delivery/service";
 import { findOrderRecord, updateOrderPayment } from "../order/repository";
-import { notifyOrderPaid as _notifyOrderPaid } from "../email/service";
 
 const defaultPaymentConfigs: Record<PaymentProvider, PaymentConfigValue> = {
   BEPUSDT: {
@@ -386,7 +385,12 @@ export async function queryAlipayPayment(orderNo: string, prisma?: PrismaClient)
       });
       try {
         await deliverOrder(client, orderNo);
-      } catch {}
+      } catch (error) {
+        logger.error(error instanceof Error ? error : String(error), {
+          event: "payment.alipay_query.delivery_failed",
+          orderNo,
+        });
+      }
     }
   }
 
@@ -509,6 +513,32 @@ export async function handlePaymentNotify(
   }
 
   if (order.paymentStatus === "PAID") {
+    let message = "already paid";
+
+    if (order.deliveryStatus === "NOT_DELIVERED") {
+      const product = await prisma.product.findUnique({
+        where: { id: order.productId },
+        select: { deliveryType: true },
+      });
+
+      if (product?.deliveryType !== "MANUAL") {
+        try {
+          await deliverOrder(prisma, order.orderNo);
+          message = "already paid; delivery retried";
+        } catch (error) {
+          writePaymentNotifyDiagnostic({
+            provider,
+            source,
+            reason: "delivery retry failed for already paid order",
+            orderNo: verified.orderNo,
+            payload,
+            error,
+          });
+          message = "already paid; delivery retry failed";
+        }
+      }
+    }
+
     await createNotifyLog(prisma, {
       orderId: order.id,
       provider,
@@ -517,14 +547,14 @@ export async function handlePaymentNotify(
       rawPayload,
       verifyStatus: "VERIFIED",
       source,
-      message: "already paid",
+      message,
       status: verified.status,
     });
 
     return {
       ok: true,
       status: verified.status,
-      message: "already paid",
+      message,
     };
   }
 

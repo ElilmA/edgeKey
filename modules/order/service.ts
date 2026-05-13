@@ -55,6 +55,24 @@ export async function createOrder(input: {
   }
 
   const quantity = Math.max(product.minBuy, Math.min(product.maxBuy, Math.floor(input.quantity)));
+
+  if (product.deliveryType === "CARD_AUTO") {
+    const availableCards = await prisma.card.count({
+      where: {
+        productId: product.id,
+        status: "UNUSED",
+      },
+    });
+
+    if (availableCards < quantity) {
+      throw conflictError("商品库存不足，请减少购买数量或选择其他商品", "PRODUCT_STOCK_NOT_ENOUGH");
+    }
+  }
+
+  if (product.deliveryType === "FIXED_CARD" && !product.fixedDeliveryContent?.trim()) {
+    throw conflictError("商品固定发货内容未配置，暂不可购买", "PRODUCT_FIXED_CONTENT_MISSING");
+  }
+
   const orderNo = generateOrderNo();
   const queryToken = generateQueryToken();
   let paymentChannel: string | null = null;
@@ -86,6 +104,7 @@ export async function createOrder(input: {
     amount: order.amount,
     paymentProvider: order.paymentProvider,
     paymentChannel: order.paymentChannel,
+    paymentStatus: order.paymentStatus,
     ...(await createPaymentForOrder(order.orderNo, prisma)),
   };
 }
@@ -123,7 +142,7 @@ export async function getOrderForQuery(
   // notify 与 return 几乎同时到达时，return 这次读取可能正好卡在
   // “订单已支付但异步发货还没写完”的瞬间。这里做一次短暂重查，
   // 优先把最终的 DELIVERED 状态和发货内容返回给页面，避免用户手动刷新。
-  if (order.paymentStatus === "PAID" && order.deliveryStatus === "NOT_DELIVERED") {
+  if (order.product.deliveryType !== "MANUAL" && order.paymentStatus === "PAID" && order.deliveryStatus === "NOT_DELIVERED") {
     for (let index = 0; index < 3; index += 1) {
       await sleep(150);
       const refreshed = await findOrderWithProduct(client, orderNo);
@@ -159,6 +178,43 @@ export async function getOrderForQuery(
       }
     }),
   };
+}
+
+export async function getOrdersForLocalCache(
+  inputs: Array<{ orderNo: string; queryToken: string }>,
+  prisma?: PrismaClient,
+) {
+  const client = prisma ?? getOrderContext().prisma;
+  const uniqueInputs = Array.from(
+    new Map(
+      inputs
+        .filter((item) => item.orderNo?.trim() && item.queryToken?.trim())
+        .slice(0, 50)
+        .map((item) => [item.orderNo.trim(), { orderNo: item.orderNo.trim(), queryToken: item.queryToken.trim() }]),
+    ).values(),
+  );
+
+  const result = [];
+
+  for (const input of uniqueInputs) {
+    const order = await findOrderWithProduct(client, input.orderNo);
+    if (!order || order.queryToken !== input.queryToken) {
+      continue;
+    }
+
+    result.push({
+      orderNo: order.orderNo,
+      queryToken: order.queryToken,
+      status: order.status,
+      paymentStatus: order.paymentStatus,
+      deliveryStatus: order.deliveryStatus,
+      productName: order.productNameSnapshot,
+      amount: order.amount,
+      createdAt: order.createdAt.toISOString(),
+    });
+  }
+
+  return result;
 }
 
 export async function getAdminOrders(prisma?: PrismaClient) {
@@ -269,6 +325,7 @@ export async function getAdminOrderById(id: number, prisma?: PrismaClient) {
     orderNo: order.orderNo,
     queryToken: order.queryToken,
     productName: order.productNameSnapshot,
+    productDeliveryType: order.product.deliveryType,
     amount: order.amount,
     quantity: order.quantity,
     paymentProvider: order.paymentProvider,

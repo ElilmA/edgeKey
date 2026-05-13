@@ -12,8 +12,8 @@
         <form method="dialog"><button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button></form>
         <h3 class="text-lg font-bold">新增卡密</h3>
         <select v-model="singleForm.productId" class="select select-bordered w-full">
-          <option value="">请选择商品</option>
-          <option v-for="product in products" :key="product.id" :value="String(product.id)">{{ product.name }}</option>
+          <option value="">请选择自动发货卡密商品</option>
+          <option v-for="product in autoCardProducts" :key="product.id" :value="String(product.id)">{{ product.name }}</option>
         </select>
         <input v-model="singleForm.batchNo" class="input input-bordered w-full" placeholder="批次号（可选）" />
         <textarea v-model="singleForm.content" class="textarea textarea-bordered w-full" rows="4" placeholder="输入卡密内容"></textarea>
@@ -32,8 +32,8 @@
         <form method="dialog"><button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button></form>
         <h3 class="text-lg font-bold">批量导入</h3>
         <select v-model="importForm.productId" class="select select-bordered w-full">
-          <option value="">请选择商品</option>
-          <option v-for="product in products" :key="product.id" :value="String(product.id)">{{ product.name }}</option>
+          <option value="">请选择自动发货卡密商品</option>
+          <option v-for="product in autoCardProducts" :key="product.id" :value="String(product.id)">{{ product.name }}</option>
         </select>
         <input v-model="importForm.batchNo" class="input input-bordered w-full" placeholder="批次号（可选）" />
         <textarea v-model="importForm.lines" class="textarea textarea-bordered w-full" rows="8" placeholder="每行一条卡密"></textarea>
@@ -61,8 +61,8 @@
         <!-- 搜索筛选 -->
         <div class="flex flex-wrap gap-3 items-center">
           <select v-model="filter.productId" class="select select-sm select-bordered w-46">
-            <option value="">全部商品</option>
-            <option v-for="product in products" :key="product.id" :value="String(product.id)">{{ product.name }}</option>
+            <option value="">全部自动卡密商品</option>
+            <option v-for="product in autoCardProducts" :key="product.id" :value="String(product.id)">{{ product.name }}</option>
           </select>
           <select v-model="filter.status" class="select select-sm select-bordered w-auto">
             <option value="">全部状态</option>
@@ -124,6 +124,7 @@ import AppButton from "../../../components/AppButton.vue";
 import type { Data } from "./+data";
 
 const { cards, products, overview } = useData<Data>();
+const autoCardProducts = products.filter((product) => product.deliveryType === "CARD_AUTO");
 
 const PAGE_SIZE = 20;
 const currentPage = ref(1);

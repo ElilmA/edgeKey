@@ -41,6 +41,44 @@
         </label>
       </div>
 
+      <div class="space-y-3 rounded-box border border-base-200 p-4">
+        <div>
+          <div class="text-sm font-medium">发货方式</div>
+          <p class="text-xs text-base-content/60">发货方式决定库存来源和支付后的发货动作。</p>
+        </div>
+        <div class="grid gap-3 md:grid-cols-3">
+          <label class="rounded-box border border-base-300 p-3" :class="form.deliveryType === 'CARD_AUTO' ? 'border-primary bg-primary/5' : ''">
+            <div class="flex items-center justify-between gap-2">
+              <span class="font-medium">自动发货卡密</span>
+              <input v-model="form.deliveryType" type="radio" class="radio radio-primary radio-sm" value="CARD_AUTO" />
+            </div>
+            <p class="mt-1 text-xs text-base-content/60">从卡密库存中自动分配未售卡密。</p>
+          </label>
+          <label class="rounded-box border border-base-300 p-3" :class="form.deliveryType === 'FIXED_CARD' ? 'border-primary bg-primary/5' : ''">
+            <div class="flex items-center justify-between gap-2">
+              <span class="font-medium">固定内容自动发货</span>
+              <input v-model="form.deliveryType" type="radio" class="radio radio-primary radio-sm" value="FIXED_CARD" />
+            </div>
+            <p class="mt-1 text-xs text-base-content/60">每次支付后发送同一份固定内容，不使用卡密库存。</p>
+          </label>
+          <label class="rounded-box border border-base-300 p-3" :class="form.deliveryType === 'MANUAL' ? 'border-primary bg-primary/5' : ''">
+            <div class="flex items-center justify-between gap-2">
+              <span class="font-medium">手动发货</span>
+              <input v-model="form.deliveryType" type="radio" class="radio radio-primary radio-sm" value="MANUAL" />
+            </div>
+            <p class="mt-1 text-xs text-base-content/60">支付后等待管理员在订单详情填写发货内容。</p>
+          </label>
+        </div>
+        <label v-if="form.deliveryType === 'FIXED_CARD'" class="flex flex-col gap-1.5">
+          <span class="label-text font-medium">固定发货内容</span>
+          <textarea v-model="form.fixedDeliveryContent" class="textarea textarea-bordered w-full" rows="5" placeholder="买家支付后会收到这段固定内容"></textarea>
+        </label>
+        <label v-if="form.deliveryType === 'MANUAL'" class="flex flex-col gap-1.5">
+          <span class="label-text font-medium">手动发货说明（可选）</span>
+          <textarea v-model="form.manualDeliveryHint" class="textarea textarea-bordered w-full" rows="3" placeholder="例如：请留下账号信息，管理员将在 24 小时内处理"></textarea>
+        </label>
+      </div>
+
       <div class="grid gap-4 md:grid-cols-4">
         <label class="flex flex-col gap-1.5">
           <span class="label-text font-medium">最小购买数</span>
@@ -139,6 +177,9 @@ async function handleSave() {
       description: form.description,
       price: form.price,
       status: form.status,
+      deliveryType: form.deliveryType,
+      fixedDeliveryContent: form.fixedDeliveryContent,
+      manualDeliveryHint: form.manualDeliveryHint,
       minBuy: form.minBuy,
       maxBuy: form.maxBuy,
       sort: form.sort,
@@ -154,6 +195,9 @@ async function handleSave() {
     form.description = result.description ?? "";
     form.price = result.price;
     form.status = result.status;
+    form.deliveryType = result.deliveryType;
+    form.fixedDeliveryContent = result.fixedDeliveryContent ?? "";
+    form.manualDeliveryHint = result.manualDeliveryHint ?? "";
     form.minBuy = result.minBuy;
     form.maxBuy = result.maxBuy;
     form.sort = result.sort;

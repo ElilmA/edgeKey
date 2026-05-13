@@ -1,7 +1,7 @@
 import type { PrismaClient } from "../../../generated/prisma/client";
 import { getAdminCategories, getAdminProducts } from "../../../modules/catalog/service";
 
-export type Data = ReturnType<typeof data>;
+export type Data = Awaited<ReturnType<typeof data>>;
 
 export async function data(pageContext: {
   prisma: PrismaClient;
@@ -10,6 +10,7 @@ export async function data(pageContext: {
   if (pageContext.session?.user?.role !== "admin") {
     return {
       products: [],
+      total: 0,
       categories: [],
     };
   }

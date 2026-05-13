@@ -54,6 +54,7 @@ import AppButton from "../../../components/AppButton.vue";
 import { useData } from "vike-vue/useData";
 import { formatCents } from "../../../lib/utils/money";
 import { getDeliveryStatusLabel, getDeliveryStatusType, getOrderStatusLabel, getOrderStatusType, getPaymentProviderLabel, getPaymentStatusLabel, getPaymentStatusType } from "../../../lib/utils/order-status";
+import { updateLocalOrder } from "../../../lib/local-orders";
 import StatusTag from "../../../components/StatusTag.vue";
 import { onCreatePayment } from "./createPayment.telefunc";
 import { onQueryAlipayPayment } from "./queryAlipayPayment.telefunc";
@@ -64,7 +65,20 @@ const paying = ref(false);
 const paymentError = ref("");
 
 onMounted(async () => {
-  if (!order || order.paymentStatus !== "UNPAID" || order.paymentProvider !== "ALIPAY") return;
+  if (!order) return;
+
+  updateLocalOrder({
+    orderNo: order.orderNo,
+    queryToken: order.queryToken,
+    productName: order.productName,
+    amount: order.amount,
+    createdAt: order.createdAt,
+    status: order.status,
+    paymentStatus: order.paymentStatus,
+    deliveryStatus: order.deliveryStatus,
+  });
+
+  if (order.paymentStatus !== "UNPAID" || order.paymentProvider !== "ALIPAY") return;
   const params = new URLSearchParams(window.location.search);
   if (!params.get("out_trade_no")) return;
   try {

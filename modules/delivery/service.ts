@@ -2,7 +2,7 @@ import type { PrismaClient } from "../../generated/prisma/client";
 import { getErrorMessage } from "../../lib/app-error";
 import { logger } from "../../lib/logger";
 import { notifyDeliveryFailed, notifyDeliverySuccess } from "../email/service";
-import { conflictError, notFoundError } from "../../lib/app-error";
+import { badRequestError, conflictError, notFoundError } from "../../lib/app-error";
 import { allocateCardsForOrder } from "../inventory/allocator";
 import { updateOrderDeliveryState } from "../order/repository";
 
@@ -31,13 +31,38 @@ export async function deliverOrder(prisma: PrismaClient, orderNo: string) {
   }
 
   try {
-    const cards = await allocateCardsForOrder(prisma, order.id, order.productId, order.quantity);
-    const contents = cards.map((card) => card.content);
+    if (order.product.deliveryType === "MANUAL") {
+      logger.info("manual_delivery_waiting", {
+        event: "delivery.manual.waiting",
+        orderNo: order.orderNo,
+      });
+      return {
+        success: true,
+        items: [],
+        manual: true,
+      };
+    }
+
+    let contents: string[];
+    let deliveryType: "CARD" | "FIXED_CARD";
+
+    if (order.product.deliveryType === "FIXED_CARD") {
+      const fixedContent = order.product.fixedDeliveryContent?.trim();
+      if (!fixedContent) {
+        throw conflictError("固定发货内容未配置", "FIXED_DELIVERY_CONTENT_MISSING");
+      }
+      contents = [fixedContent];
+      deliveryType = "FIXED_CARD";
+    } else {
+      const cards = await allocateCardsForOrder(prisma, order.id, order.productId, order.quantity);
+      contents = cards.map((card) => card.content);
+      deliveryType = "CARD";
+    }
 
     await prisma.orderDelivery.create({
       data: {
         orderId: order.id,
-        deliveryType: "CARD",
+        deliveryType,
         contentSnapshot: JSON.stringify(contents),
         status: "SUCCESS",
       },
@@ -74,10 +99,11 @@ export async function deliverOrder(prisma: PrismaClient, orderNo: string) {
       items: contents,
     };
   } catch (error) {
+    const failedDeliveryType = order.product.deliveryType === "FIXED_CARD" ? "FIXED_CARD" : "CARD";
     await prisma.orderDelivery.create({
       data: {
         orderId: order.id,
-        deliveryType: "CARD",
+        deliveryType: failedDeliveryType,
         contentSnapshot: error instanceof Error ? error.message : "delivery failed",
         status: "FAILED",
       },
@@ -112,9 +138,10 @@ export async function deliverOrder(prisma: PrismaClient, orderNo: string) {
   }
 }
 
-export async function redeliverOrder(prisma: PrismaClient, orderId: number) {
+export async function adminDeliverOrder(prisma: PrismaClient, orderId: number, input?: { content?: string }) {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
+    include: { product: true },
   });
 
   if (!order) {
@@ -122,12 +149,64 @@ export async function redeliverOrder(prisma: PrismaClient, orderId: number) {
   }
 
   if (order.paymentStatus !== "PAID") {
-    throw conflictError("订单未支付，无法补发", "ORDER_NOT_PAID");
+    throw conflictError("订单未支付，无法发货", "ORDER_NOT_PAID");
   }
 
   if (order.deliveryStatus === "DELIVERED") {
-    throw conflictError("订单已发货，无需补发", "ORDER_ALREADY_DELIVERED");
+    throw conflictError("订单已发货，无需重复发货", "ORDER_ALREADY_DELIVERED");
   }
 
-  return deliverOrder(prisma, order.orderNo);
+  if (order.product.deliveryType !== "MANUAL") {
+    return deliverOrder(prisma, order.orderNo);
+  }
+
+  const content = input?.content?.trim();
+  if (!content) {
+    throw badRequestError("手动发货内容不能为空", "MANUAL_DELIVERY_CONTENT_REQUIRED");
+  }
+
+  await prisma.orderDelivery.create({
+    data: {
+      orderId: order.id,
+      deliveryType: "MANUAL",
+      contentSnapshot: content,
+      status: "SUCCESS",
+    },
+  });
+
+  await updateOrderDeliveryState(prisma, order.orderNo, {
+    status: "DELIVERED",
+    deliveryStatus: "DELIVERED",
+    deliveredAt: new Date(),
+  });
+
+  if (order.contactType === "EMAIL" && order.contactValue) {
+    try {
+      await notifyDeliverySuccess({
+        prisma,
+        orderId: order.id,
+        orderNo: order.orderNo,
+        queryToken: order.queryToken,
+        productName: order.productNameSnapshot,
+        quantity: order.quantity,
+        items: [content],
+        toEmail: order.contactValue,
+      });
+    } catch (error) {
+      logger.error(error instanceof Error ? error : String(error), {
+        event: "email.manual_delivery_success.failed",
+        orderNo: order.orderNo,
+      });
+    }
+  }
+
+  return {
+    success: true,
+    items: [content],
+    manual: true,
+  };
+}
+
+export async function redeliverOrder(prisma: PrismaClient, orderId: number) {
+  return adminDeliverOrder(prisma, orderId);
 }

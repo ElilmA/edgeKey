@@ -1,5 +1,23 @@
 # Change Log
 
+## v1.3.4 (2026-05-13)
+
+### Features
+
+- **product:** 新增商品发货方式，支持自动发货卡密、固定内容自动发货和手动发货配置 ([28c8671](https://github.com/34892002/edgeKey/commit/28c8671))
+
+### Improvements
+
+- **product:** 优化商品列表、商品详情和首页商品卡片展示，按发货方式展示库存、发货说明和状态信息 ([ad4de3b](https://github.com/34892002/edgeKey/commit/ad4de3b))
+- **payment:** 优化商品详情页支付方式体验，易支付优先展示并补充支付宝、微信渠道图标 ([c450cc8](https://github.com/34892002/edgeKey/commit/c450cc8))
+- **order:** 优化本地订单列表状态展示和刷新状态交互体验 ([bf0bf1f](https://github.com/34892002/edgeKey/commit/bf0bf1f))
+
+### Bug Fixes
+
+- **order:** 修复本地缓存订单状态未同步的问题 ([d949e82](https://github.com/34892002/edgeKey/commit/d949e82))
+- **order:** 修复订单边界情况处理问题 ([1db9abc](https://github.com/34892002/edgeKey/commit/1db9abc))
+- **inventory:** 修复批量导入重复卡密时点击“取消”仍被去重的问题，原始输入继续进入数据库重复检测和导入流程 ([ad4de3b](https://github.com/34892002/edgeKey/commit/ad4de3b))
+
 ## v1.3.3 (2026-05-11)
 
 ### Bug Fixes

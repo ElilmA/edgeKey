@@ -28,8 +28,14 @@
             <div>查询凭证：<code>{{ order.queryToken }}</code></div>
           </div>
         </div>
+        <div v-if="order.productDeliveryType === 'MANUAL' && order.paymentStatus === 'PAID' && order.deliveryStatus !== 'DELIVERED'" class="pt-2">
+          <label class="flex flex-col gap-1.5">
+            <span class="label-text font-medium">手动发货内容</span>
+            <textarea v-model="manualDeliveryContent" class="textarea textarea-bordered w-full" rows="4" placeholder="填写本次订单要发给买家的内容"></textarea>
+          </label>
+        </div>
         <div class="flex flex-wrap items-center gap-3 pt-2">
-          <AppButton size="sm" variant="primary" :disabled="order.deliveryStatus === 'DELIVERED' || order.paymentStatus !== 'PAID'" @click="handleRedeliver">手动补发</AppButton>
+          <AppButton size="sm" variant="primary" :disabled="order.deliveryStatus === 'DELIVERED' || order.paymentStatus !== 'PAID'" @click="handleRedeliver">{{ deliveryActionLabel }}</AppButton>
           <AppButton size="sm" variant="outline" :disabled="order.status === 'CLOSED'" @click="handleClose">关闭订单</AppButton>
           <span v-if="actionMessage" class="text-sm text-success">{{ actionMessage }}</span>
           <span v-if="actionError" class="text-sm text-error">{{ actionError }}</span>
@@ -81,7 +87,7 @@
 
 <script setup lang="ts">
 import { normalizeTelefuncError } from "../../../../lib/app-error";
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import { useData } from "vike-vue/useData";
 import { formatCents } from "../../../../lib/utils/money";
 import {
@@ -103,8 +109,16 @@ import type { Data } from "./+data";
 const { order } = useData<Data>();
 const actionMessage = ref("");
 const actionError = ref("");
+const manualDeliveryContent = ref("");
 const payloadDialogRef = ref<HTMLDialogElement | null>(null);
 const formattedPayload = ref("");
+
+const deliveryActionLabel = computed(() => {
+  if (!order) return "发货";
+  if (order.productDeliveryType === "MANUAL") return "手动发货";
+  if (order.productDeliveryType === "FIXED_CARD") return "发货固定内容";
+  return "重新自动发货";
+});
 
 function openRawPayload(raw: string) {
   try {
@@ -125,10 +139,10 @@ async function handleRedeliver() {
   actionError.value = "";
 
   try {
-    const result = await onRedeliver({ orderId: order.id });
-    actionMessage.value = `补发完成，共发出 ${result.items.length} 条卡密。`;
+    const result = await onRedeliver({ orderId: order.id, content: manualDeliveryContent.value });
+    actionMessage.value = `${deliveryActionLabel.value}完成，共发出 ${result.items.length} 条内容。`;
   } catch (error) {
-    actionError.value = normalizeTelefuncError(error, "补发失败");
+    actionError.value = normalizeTelefuncError(error, "发货失败");
   }
 }
 

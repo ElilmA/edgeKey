@@ -5,6 +5,8 @@ export function validateProductInput(input: {
   price?: number;
   minBuy?: number;
   maxBuy?: number;
+  deliveryType?: string;
+  fixedDeliveryContent?: string;
 }) {
   const name = input.name?.trim() || "";
   if (!name) {
@@ -23,7 +25,19 @@ export function validateProductInput(input: {
     throw badRequestError("最大购买数不能小于最小购买数", "PRODUCT_MAX_BUY_INVALID");
   }
 
+  const deliveryType = input.deliveryType || "CARD_AUTO";
+  if (!["CARD_AUTO", "FIXED_CARD", "MANUAL"].includes(deliveryType)) {
+    throw badRequestError("发货方式不正确", "PRODUCT_DELIVERY_TYPE_INVALID");
+  }
+
+  const fixedDeliveryContent = input.fixedDeliveryContent?.trim() || "";
+  if (deliveryType === "FIXED_CARD" && !fixedDeliveryContent) {
+    throw badRequestError("固定内容自动发货必须填写发货内容", "PRODUCT_FIXED_CONTENT_REQUIRED");
+  }
+
   return {
     name,
+    deliveryType: deliveryType as "CARD_AUTO" | "FIXED_CARD" | "MANUAL",
+    fixedDeliveryContent,
   };
 }

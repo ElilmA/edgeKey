@@ -34,6 +34,11 @@
           <div class="text-xs text-base-content/60">{{ row.slug }}</div>
         </template>
         <template #categoryName="{ value }">{{ value || '未分类' }}</template>
+        <template #deliveryType="{ value }">
+          <StatusTag :type="getDeliveryTypeTagType(value)" variant="pill">
+            {{ getDeliveryTypeLabel(value) }}
+          </StatusTag>
+        </template>
         <template #price="{ value }">{{ formatCents(value) }}</template>
         <template #buy="{ row }">{{ row.minBuy }} - {{ row.maxBuy }}</template>
         <template #status="{ row }">
@@ -78,11 +83,38 @@ const columns = [
   { key: "id", label: "ID" },
   { key: "name", label: "商品" },
   { key: "categoryName", label: "分类" },
+  { key: "deliveryType", label: "发货方式" },
   { key: "price", label: "价格" },
   { key: "buy", label: "限购" },
   { key: "status", label: "状态" },
   { key: "actions", label: "操作" },
 ];
+
+function getDeliveryTypeLabel(deliveryType: string) {
+  switch (deliveryType) {
+    case "CARD_AUTO":
+      return "自动发货卡密";
+    case "FIXED_CARD":
+      return "固定内容自动发货";
+    case "MANUAL":
+      return "手动发货";
+    default:
+      return deliveryType;
+  }
+}
+
+function getDeliveryTypeTagType(deliveryType: string): "primary" | "success" | "danger" | "warning" | "default" {
+  switch (deliveryType) {
+    case "CARD_AUTO":
+      return "primary";
+    case "FIXED_CARD":
+      return "success";
+    case "MANUAL":
+      return "warning";
+    default:
+      return "default";
+  }
+}
 
 async function fetchPage(page: number) {
   pageData.value = await onQueryProducts({
