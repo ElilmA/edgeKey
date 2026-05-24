@@ -1,4 +1,4 @@
-import { authjsHandler, authjsSessionMiddleware } from "./authjs-handler";
+import { adminAuthMiddleware, authjsHandler, authjsSessionMiddleware } from "./authjs-handler";
 import { getPrismaForD1 } from "./prisma-factory";
 import { telefuncHandler } from "./telefunc-handler";
 import { prismaMiddleware } from "./prisma-middleware";
@@ -68,6 +68,9 @@ export function createApp() {
 
     // Append Auth.js session to context
     authjsSessionMiddleware,
+
+    // Protect admin pageContext.json endpoints
+    adminAuthMiddleware,
 
     // Auth.js route. See https://authjs.dev/getting-started/installation
     authjsHandler,

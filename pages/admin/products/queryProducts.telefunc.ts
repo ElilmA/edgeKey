@@ -1,3 +1,4 @@
+import { assertAdminAccess } from "../../../modules/auth/service";
 import { listAdminProducts } from "../../../modules/catalog/queries";
 import { getContext } from "telefunc";
 
@@ -7,6 +8,7 @@ export async function onQueryProducts(input: {
   page: number;
   pageSize: number;
 }) {
+  assertAdminAccess();
   const { prisma } = getContext() as any;
   const all = await listAdminProducts(prisma);
 

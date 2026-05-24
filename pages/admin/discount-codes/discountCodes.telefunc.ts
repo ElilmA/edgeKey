@@ -1,8 +1,10 @@
+import { assertAdminAccess } from "../../../modules/auth/service";
 import { listDiscountCodes, createDiscountCode, updateDiscountCode, deleteDiscountCode } from "../../../modules/discount/service";
 import type { PrismaClient } from "../../../generated/prisma/client";
 import { getContext } from "telefunc";
 
 function getAdminPrisma(): PrismaClient {
+  assertAdminAccess();
   return getContext<{ prisma: PrismaClient }>().prisma;
 }
 

@@ -225,6 +225,35 @@ export const authjsSessionMiddleware: UniversalMiddleware = enhance(
   },
 );
 
+function isAdminPageContextRequest(url: string): boolean {
+  const parsed = new URL(url);
+  return /^\/admin\/.*\.pageContext\.json$/.test(parsed.pathname);
+}
+
+export const adminAuthMiddleware: UniversalMiddleware = enhance(
+  async (request, context) => {
+    const ctx = context as unknown as AuthContext & { url?: string };
+    const url = ctx.url ?? request.url;
+
+    if (!isAdminPageContextRequest(url)) {
+      return context;
+    }
+
+    if (ctx.session?.user?.role === "admin") {
+      return context;
+    }
+
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    });
+  },
+  {
+    name: "my-app:admin-auth",
+    immutable: false,
+  },
+);
+
 // Note: You can directly define a server middleware instead of defining a Universal Middleware. (You can remove @universal-middleware/* — Vike's scaffolder uses it only to simplify its internal logic, see https://github.com/vikejs/vike/discussions/3116)
 /**
  * Auth.js route

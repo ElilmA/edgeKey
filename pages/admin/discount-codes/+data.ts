@@ -4,8 +4,12 @@ import type { PageContextServer } from "vike/types";
 export type Data = Awaited<ReturnType<typeof data>>;
 
 export async function data(pageContext: PageContextServer) {
-  const { prisma } = pageContext as any;
-  
+  const { prisma, session } = pageContext as any;
+
+  if (session?.user?.role !== "admin") {
+    return { discountCodes: { items: [], total: 0 }, products: [] };
+  }
+
   const PAGE_SIZE = 20;
   
   const [discountCodesResult, products] = await Promise.all([
