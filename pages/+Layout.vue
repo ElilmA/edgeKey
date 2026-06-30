@@ -98,14 +98,10 @@ const isAdminRoute = computed(() => pageContext.urlPathname?.startsWith("/admin"
 
 function injectCode(html: string, target: Element) {
   const doc = new DOMParser().parseFromString(html, "text/html");
-  doc.body.childNodes.forEach((node) => {
-    if (node instanceof HTMLScriptElement) {
-      const s = document.createElement("script");
-      s.textContent = node.textContent;
-      target.appendChild(s);
-    } else if (node.nodeType !== Node.TEXT_NODE || node.textContent?.trim()) {
-      target.appendChild(node.cloneNode(true));
-    }
+  doc.querySelectorAll("script").forEach((old) => {
+    const s = document.createElement("script");
+    s.textContent = old.textContent;
+    target.appendChild(s);
   });
 }
 
