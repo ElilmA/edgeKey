@@ -19,6 +19,8 @@ export async function onSavePaymentConfig(input: {
   stripeSecretKey?: string;
   stripeWebhookSecret?: string;
   stripeCurrency?: string;
+  hashpayMerchantId?: string;
+  hashpayPrivateKey?: string;
 }) {
   assertAdminAccess();
   return savePaymentConfig(input);

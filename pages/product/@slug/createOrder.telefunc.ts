@@ -1,4 +1,5 @@
 import { createOrder } from "../../../modules/order/service";
+import { logger } from "../../../lib/logger";
 import type { PaymentProvider } from "../../../modules/payment/types";
 
 export async function onCreateOrder(input: {
@@ -11,5 +12,14 @@ export async function onCreateOrder(input: {
   buyerNote?: string;
   discountCode?: string;
 }) {
-  return createOrder(input);
+  try {
+    return await createOrder(input);
+  } catch (error) {
+    logger.error(error instanceof Error ? error : new Error(String(error)), {
+      event: "createOrder.failed",
+      paymentProvider: input.paymentProvider,
+      productId: input.productId,
+    });
+    throw error;
+  }
 }
