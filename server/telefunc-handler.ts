@@ -15,8 +15,8 @@ function withUtf8Charset(contentType: string) {
 config.disableNamingConvention = true;
 config.log = {
   shieldErrors: {
-    dev: true,
-    prod: true,
+    dev: false,
+    prod: false,
   },
 };
 
