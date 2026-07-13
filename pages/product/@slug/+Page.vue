@@ -2,7 +2,7 @@
   <div v-if="!product" class="alert alert-warning">商品不存在或未上架。</div>
   <div v-else class="grid gap-6 lg:grid-cols-[2fr_1fr]">
     <section class="card bg-base-100 shadow-sm overflow-hidden">
-      <figure class="w-full bg-base-200">
+      <figure class="w-full bg-base-200 !m-0">
         <img :src="product.coverImage || emptyCoverUrl" :alt="product.name" class="w-full object-cover max-h-96" />
       </figure>
       <div class="card-body space-y-4">

@@ -46,6 +46,9 @@
   img {
     @apply my-4 mx-auto block max-w-full rounded-xl;
   }
+  .card img {
+    @apply m-0 max-w-none rounded-none;
+  }
   mark {
     @apply rounded px-0.5;
   }

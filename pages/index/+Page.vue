@@ -76,7 +76,7 @@
           @click="navigateToProduct(product.slug)"
         >
           <!-- 商品图片 -->
-          <figure class="relative aspect-square overflow-hidden bg-base-200">
+          <figure class="relative aspect-square overflow-hidden bg-base-200 !m-0">
             <img
               :src="product.coverImage || emptyCoverUrl"
               :alt="product.name"
