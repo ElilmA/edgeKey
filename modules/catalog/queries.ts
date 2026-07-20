@@ -1,5 +1,6 @@
-import type { PrismaClient } from "../../generated/prisma/client";
+import type { Prisma, PrismaClient } from "../../generated/prisma/client";
 import { findProductRecordById, listAdminProductRecords, listCategoryRecords, listHomeCategoryRecords } from "./repository";
+import { normalizeAdminProductQueryInput, type AdminProductQueryInput } from "./admin-products";
 import type { AdminProductSummary, CategorySummary, ProductDeliveryTypeValue, ProductSummary } from "./types";
 
 function getAvailableStock(item: { deliveryType: string; stockMode: string; physicalStock: number | null; _count: { cards: number } }) {
@@ -14,6 +15,25 @@ function getAvailableStock(item: { deliveryType: string; stockMode: string; phys
   }
 
   return -1;
+}
+
+export function normalizeProductSearchInput(input: string) {
+  const query = input.trim().replace(/\s+/g, " ").slice(0, 64).trim();
+  const seen = new Set<string>();
+  const terms: string[] = [];
+
+  for (const term of query.split(" ")) {
+    if (!term) continue;
+
+    const key = term.toLocaleLowerCase();
+    if (seen.has(key)) continue;
+
+    seen.add(key);
+    terms.push(term);
+    if (terms.length === 5) break;
+  }
+
+  return { query, terms };
 }
 
 export async function listHomeProducts(prisma: PrismaClient): Promise<ProductSummary[]> {
@@ -74,11 +94,61 @@ export async function listHomeProductsPaged(
   };
 }
 
+export async function searchPublicProducts(
+  prisma: PrismaClient,
+  params: { query: string; skip?: number; take?: number },
+): Promise<{ items: ProductSummary[]; total: number; query: string }> {
+  const { query, terms } = normalizeProductSearchInput(params.query);
+  if (!terms.length) {
+    return { items: [], total: 0, query };
+  }
+
+  const skip = Math.min(10_000, Math.max(0, Math.trunc(params.skip ?? 0)));
+  const take = Math.min(24, Math.max(1, Math.trunc(params.take ?? 6)));
+  const where = {
+    status: "ACTIVE",
+    AND: terms.map((term) => ({
+      OR: [
+        { name: { contains: term } },
+        { subtitle: { contains: term } },
+        { category: { is: { name: { contains: term } } } },
+      ],
+    })),
+  } satisfies Prisma.ProductWhereInput;
+
+  const [records, total] = await Promise.all([
+    prisma.product.findMany({
+      where,
+      include: {
+        category: true,
+        _count: {
+          select: {
+            cards: {
+              where: { status: "UNUSED" },
+            },
+          },
+        },
+      },
+      orderBy: [{ sort: "asc" }, { id: "desc" }],
+      skip,
+      take,
+    }),
+    prisma.product.count({ where }),
+  ]);
+
+  return {
+    items: records.map((item) => mapProductSummary(item)),
+    total,
+    query,
+  };
+}
+
 function mapProductSummary(item: {
   id: number;
   categoryId: number | null;
   category: { name: string } | null;
   name: string;
+  subtitle: string | null;
   slug: string;
   coverImage: string | null;
   price: number;
@@ -92,6 +162,7 @@ function mapProductSummary(item: {
     categoryId: item.categoryId,
     categoryName: item.category?.name ?? null,
     name: item.name,
+    subtitle: item.subtitle,
     slug: item.slug,
     coverImage: item.coverImage,
     price: item.price,
@@ -130,7 +201,54 @@ export async function listAdminCategories(prisma: PrismaClient): Promise<Categor
 export async function listAdminProducts(prisma: PrismaClient): Promise<AdminProductSummary[]> {
   const records = await listAdminProductRecords(prisma);
 
-  return records.map((item) => ({
+  return records.map(mapAdminProductSummary);
+}
+
+export async function queryAdminProducts(
+  prisma: PrismaClient,
+  input: AdminProductQueryInput,
+): Promise<{ items: AdminProductSummary[]; total: number }> {
+  const normalized = normalizeAdminProductQueryInput(input);
+  const where = {
+    ...(normalized.name ? { name: { contains: normalized.name } } : {}),
+    ...(normalized.status ? { status: normalized.status } : {}),
+    ...(normalized.categoryId !== undefined ? { categoryId: normalized.categoryId } : {}),
+  } satisfies Prisma.ProductWhereInput;
+  const skip = (normalized.page - 1) * normalized.pageSize;
+
+  const [records, total] = await Promise.all([
+    prisma.product.findMany({
+      where,
+      include: { category: true },
+      orderBy: [{ sort: "asc" }, { id: "desc" }],
+      skip,
+      take: normalized.pageSize,
+    }),
+    prisma.product.count({ where }),
+  ]);
+
+  return {
+    items: records.map(mapAdminProductSummary),
+    total,
+  };
+}
+
+function mapAdminProductSummary(item: {
+  id: number;
+  name: string;
+  slug: string;
+  subtitle: string | null;
+  coverImage: string | null;
+  price: number;
+  status: "DRAFT" | "ACTIVE" | "INACTIVE";
+  deliveryType: string;
+  minBuy: number;
+  maxBuy: number;
+  sort: number;
+  categoryId: number | null;
+  category: { name: string } | null;
+}): AdminProductSummary {
+  return {
     id: item.id,
     name: item.name,
     slug: item.slug,
@@ -144,7 +262,7 @@ export async function listAdminProducts(prisma: PrismaClient): Promise<AdminProd
     sort: item.sort,
     categoryId: item.categoryId,
     categoryName: item.category?.name ?? null,
-  }));
+  };
 }
 
 export async function getAdminProductDetail(prisma: PrismaClient, id: number) {

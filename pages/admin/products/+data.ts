@@ -1,5 +1,5 @@
 import type { PrismaClient } from "../../../generated/prisma/client";
-import { getAdminCategories, getAdminProducts } from "../../../modules/catalog/service";
+import { getAdminCategories, getAdminProductsPage } from "../../../modules/catalog/service";
 
 export type Data = Awaited<ReturnType<typeof data>>;
 
@@ -15,10 +15,10 @@ export async function data(pageContext: {
     };
   }
 
-  const products = await getAdminProducts(pageContext.prisma);
+  const productPage = await getAdminProductsPage({ page: 1, pageSize: 20 }, pageContext.prisma);
   return {
-    products,
-    total: products.length,
+    products: productPage.items,
+    total: productPage.total,
     categories: await getAdminCategories(pageContext.prisma),
   };
 }

@@ -5,8 +5,10 @@ import { badRequestError, conflictError, notFoundError } from "../../lib/app-err
 import { validateCategoryInput } from "../../lib/validators/category";
 import { validateProductInput } from "../../lib/validators/product";
 import { getAdminContext, logAdminOperation } from "../auth/service";
-import { getAdminProductDetail, getProductDetailBySlug, listAdminCategories, listAdminProducts, listHomeCategories, listHomeProducts } from "./queries";
-import { deleteCategoryRecord, deleteProductRecord, updateCategoryStatus, upsertCategoryRecord, upsertProductRecord } from "./repository";
+import { getAdminProductDetail, getProductDetailBySlug, listAdminCategories, listAdminProducts, listHomeCategories, listHomeProducts, queryAdminProducts } from "./queries";
+import { deleteCategoryRecord, deleteProductRecord, updateCategoryStatus, updateProductCategoryRecord, updateProductSortRecord, upsertCategoryRecord, upsertProductRecord } from "./repository";
+import { assertCompleteProductOrder, validateProductReorderIds, type AdminProductQueryInput } from "./admin-products";
+import { bulkUpdateSortOrder } from "./reorder";
 
 export async function getHomeCatalog(prisma?: PrismaClient) {
   const client = prisma ?? getCatalogContext().prisma;
@@ -159,6 +161,97 @@ export async function deleteCategory(input: { id: number }) {
 export async function getAdminProducts(prisma?: PrismaClient) {
   const client = prisma ?? getCatalogContext().prisma;
   return listAdminProducts(client);
+}
+
+export async function getAdminProductsPage(input: AdminProductQueryInput, prisma?: PrismaClient) {
+  const client = prisma ?? getCatalogContext().prisma;
+  return queryAdminProducts(client, input);
+}
+
+export async function updateProductCategory(input: { id: number; categoryId: number | null }) {
+  const adminContext = getAdminContext();
+  const { prisma } = adminContext;
+  const adminId = Number(adminContext.session?.user?.id);
+
+  if (!Number.isInteger(input.id) || input.id <= 0) {
+    throw badRequestError("商品 ID 无效", "PRODUCT_INVALID_ID");
+  }
+  if (input.categoryId !== null && (!Number.isInteger(input.categoryId) || input.categoryId <= 0)) {
+    throw badRequestError("商品分类无效", "PRODUCT_INVALID_CATEGORY");
+  }
+
+  const product = await prisma.product.findUnique({ where: { id: input.id }, select: { id: true } });
+  if (!product) throw notFoundError("商品不存在", "PRODUCT_NOT_FOUND");
+
+  if (input.categoryId !== null) {
+    const category = await prisma.category.findUnique({ where: { id: input.categoryId }, select: { id: true } });
+    if (!category) throw notFoundError("商品分类不存在", "CATEGORY_NOT_FOUND");
+  }
+
+  const record = await updateProductCategoryRecord(prisma, input.id, input.categoryId);
+  await logAdminOperation(
+    {
+      action: "UPDATE_PRODUCT_CATEGORY",
+      targetType: "Product",
+      targetId: String(record.id),
+      detail: `categoryId=${record.categoryId ?? "null"}`,
+    },
+    { prisma, adminId },
+  );
+
+  return { id: record.id, categoryId: record.categoryId, categoryName: record.category?.name ?? null };
+}
+
+export async function updateProductSort(input: { id: number; sort: number }) {
+  const adminContext = getAdminContext();
+  const { prisma } = adminContext;
+  const adminId = Number(adminContext.session?.user?.id);
+
+  if (!Number.isInteger(input.id) || input.id <= 0) {
+    throw badRequestError("商品 ID 无效", "PRODUCT_INVALID_ID");
+  }
+  if (!Number.isInteger(input.sort) || Math.abs(input.sort) > 1_000_000_000) {
+    throw badRequestError("商品排序值无效", "PRODUCT_INVALID_SORT");
+  }
+
+  const product = await prisma.product.findUnique({ where: { id: input.id }, select: { id: true } });
+  if (!product) throw notFoundError("商品不存在", "PRODUCT_NOT_FOUND");
+
+  const record = await updateProductSortRecord(prisma, input.id, input.sort);
+  await logAdminOperation(
+    {
+      action: "UPDATE_PRODUCT_SORT",
+      targetType: "Product",
+      targetId: String(record.id),
+      detail: `sort=${record.sort}`,
+    },
+    { prisma, adminId },
+  );
+  return { id: record.id, sort: record.sort };
+}
+
+export async function reorderProducts(input: { orderedIds: number[] }) {
+  const adminContext = getAdminContext();
+  const { prisma } = adminContext;
+  const adminId = Number(adminContext.session?.user?.id);
+  const orderedIds = validateProductReorderIds(input.orderedIds);
+  const existingProducts = await prisma.product.findMany({ select: { id: true } });
+  assertCompleteProductOrder(orderedIds, existingProducts.map((product) => product.id));
+
+  const updatedCount = await bulkUpdateSortOrder(prisma, "Product", orderedIds);
+  if (updatedCount !== orderedIds.length) {
+    throw conflictError("商品列表已发生变化，请刷新页面后重试", "PRODUCT_REORDER_STALE_LIST");
+  }
+
+  await logAdminOperation(
+    {
+      action: "REORDER_PRODUCTS",
+      targetType: "Product",
+      detail: `count=${orderedIds.length};head=${orderedIds.slice(0, 100).join(",")}`,
+    },
+    { prisma, adminId },
+  );
+  return orderedIds.map((id, sort) => ({ id, sort }));
 }
 
 export async function getAdminProductById(id: number, prisma?: PrismaClient) {

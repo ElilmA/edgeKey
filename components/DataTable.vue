@@ -11,7 +11,7 @@
           <tr v-if="!rows.length">
             <td :colspan="columns.length" class="text-center text-base-content/60">{{ emptyText }}</td>
           </tr>
-          <tr v-for="(row, i) in rows" :key="i">
+          <tr v-for="(row, i) in rows" :key="getRowKey(row, i)">
             <td v-for="col in columns" :key="col.key">
               <slot :name="col.key" :row="row" :value="row[col.key]">{{ row[col.key] ?? '-' }}</slot>
             </td>
@@ -47,6 +47,7 @@ const props = withDefaults(defineProps<{
   page: number;
   pageSize?: number;
   emptyText?: string;
+  rowKey?: string;
 }>(), {
   pageSize: 20,
   emptyText: "暂无数据",
@@ -55,6 +56,11 @@ const props = withDefaults(defineProps<{
 defineEmits<{ "update:page": [page: number] }>();
 
 const totalPages = computed(() => Math.max(1, Math.ceil(props.total / props.pageSize)));
+
+function getRowKey(row: T, index: number) {
+  if (!props.rowKey) return index;
+  return row[props.rowKey] ?? index;
+}
 
 const pageNumbers = computed(() => {
   const pages: number[] = [];

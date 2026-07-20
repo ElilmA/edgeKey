@@ -153,3 +153,19 @@ export function deleteProductRecord(prisma: PrismaClient, id: number) {
     where: { id },
   });
 }
+
+export function updateProductCategoryRecord(prisma: PrismaClient, id: number, categoryId: number | null) {
+  return prisma.product.update({
+    where: { id },
+    data: { categoryId },
+    include: { category: true },
+  });
+}
+
+export function updateProductSortRecord(prisma: PrismaClient, id: number, sort: number) {
+  return prisma.product.update({
+    where: { id },
+    data: { sort },
+    select: { id: true, sort: true, name: true },
+  });
+}

@@ -5,6 +5,7 @@ export interface ProductSummary {
   categoryId?: number | null;
   categoryName?: string | null;
   name: string;
+  subtitle?: string | null;
   slug: string;
   coverImage?: string | null;
   price: number;

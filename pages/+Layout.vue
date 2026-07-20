@@ -4,13 +4,40 @@
   </template>
   <div v-else class="min-h-screen bg-base-200 text-base-content flex flex-col">
     <header class="border-b border-base-300 bg-base-100/90 backdrop-blur sticky top-0 z-40 shadow-sm">
-      <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
-        <div class="flex items-center gap-2">
+      <div class="mx-auto flex max-w-6xl flex-wrap items-center gap-x-2 px-4 py-3">
+        <div class="order-1 flex shrink-0 items-center gap-2">
           <img :src="siteLogo" height="28" width="28" class="h-7 w-7 rounded object-cover" alt="logo" />
           <a href="/" class="text-2xl font-bold text-primary">{{ siteName }}</a>
           <!-- <p class="text-sm text-base-content/60">{{ siteSubtitle }}</p> -->
         </div>
-        <nav class="flex items-center gap-2 text-sm">
+
+        <div
+          id="mobile-product-search"
+          class="header-search-slot order-3 basis-full sm:order-2 sm:flex sm:min-w-0 sm:flex-1 sm:basis-auto sm:justify-center sm:px-3"
+          :class="mobileSearchOpen ? 'header-search-slot--open' : ''"
+        >
+          <div class="header-search-clip w-full sm:flex sm:justify-center">
+            <div class="w-full max-w-md pt-3 sm:pt-0">
+              <ProductSearch ref="productSearchRef" @request-close="closeMobileSearch" />
+            </div>
+          </div>
+        </div>
+
+        <nav class="order-2 ml-auto flex shrink-0 items-center gap-1 text-sm sm:order-3 sm:gap-2">
+          <button
+            ref="mobileSearchButtonRef"
+            type="button"
+            class="app-header-icon-btn sm:hidden"
+            :class="mobileSearchOpen ? 'bg-base-200 text-primary' : ''"
+            aria-label="搜索商品"
+            :aria-expanded="mobileSearchOpen"
+            aria-controls="mobile-product-search"
+            @click="toggleMobileSearch"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-5" aria-hidden="true">
+              <path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 1 0 3.473 9.767l3.63 3.63a.75.75 0 1 0 1.06-1.06l-3.63-3.63A5.5 5.5 0 0 0 9 3.5ZM5 9a4 4 0 1 1 8 0 4 4 0 0 1-8 0Z" clip-rule="evenodd" />
+            </svg>
+          </button>
           <AppButton href="/" variant="ghost" size="sm">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-5">
               <path fill-rule="evenodd" d="M9.293 2.293a1 1 0 0 1 1.414 0l7 7A1 1 0 0 1 17 11h-1v6a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1v-3a1 1 0 0 0-1-1H9a1 1 0 0 0-1 1v3a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-6H3a1 1 0 0 1-.707-1.707l7-7Z" clip-rule="evenodd" />
@@ -72,8 +99,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from "vue";
+import { computed, nextTick, onMounted, ref } from "vue";
 import AppButton from "../components/AppButton.vue";
+import ProductSearch from "../components/ProductSearch.vue";
 import { usePageContext } from "vike-vue/usePageContext";
 
 import logoUrl from "../assets/logo.svg";
@@ -95,6 +123,23 @@ const headCode = computed(() => pageContext.site?.headCode || "");
 const footerCode = computed(() => pageContext.site?.footerCode || "");
 
 const isAdminRoute = computed(() => pageContext.urlPathname?.startsWith("/admin"));
+const mobileSearchOpen = ref(false);
+const productSearchRef = ref<InstanceType<typeof ProductSearch> | null>(null);
+const mobileSearchButtonRef = ref<HTMLButtonElement | null>(null);
+
+async function closeMobileSearch() {
+  mobileSearchOpen.value = false;
+  await nextTick();
+  mobileSearchButtonRef.value?.focus();
+}
+
+async function toggleMobileSearch() {
+  mobileSearchOpen.value = !mobileSearchOpen.value;
+  if (mobileSearchOpen.value) {
+    await nextTick();
+    productSearchRef.value?.focus();
+  }
+}
 
 function injectCode(html: string, target: Element) {
   const doc = new DOMParser().parseFromString(html, "text/html");
@@ -106,6 +151,9 @@ function injectCode(html: string, target: Element) {
 }
 
 onMounted(() => {
+  if (window.location.pathname === "/search") {
+    mobileSearchOpen.value = true;
+  }
   if (headCode.value) injectCode(headCode.value, document.head);
   if (footerCode.value) injectCode(footerCode.value, document.body);
 });
@@ -124,5 +172,74 @@ body {
 a {
   color: inherit;
   text-decoration: none;
+}
+
+.header-search-slot {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  visibility: hidden;
+  transition: grid-template-rows 220ms ease, opacity 180ms ease;
+}
+
+.header-search-slot--open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  visibility: visible;
+}
+
+.header-search-clip {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.header-search-slot--open .header-search-clip {
+  overflow: visible;
+}
+
+.app-header-icon-btn {
+  display: inline-flex;
+  width: 2.25rem;
+  height: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--radius-field, 0.375rem);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+
+.app-header-icon-btn:hover {
+  background: var(--color-base-200);
+}
+
+.app-header-icon-btn:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--color-primary) 45%, transparent);
+  outline-offset: 2px;
+}
+
+@media (min-width: 40rem) {
+  .app-header-icon-btn {
+    display: none;
+  }
+
+  .header-search-slot {
+    display: flex;
+    grid-template-rows: 1fr;
+    opacity: 1;
+    visibility: visible;
+  }
+
+  .header-search-clip {
+    overflow: visible;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .header-search-slot {
+    transition: none;
+  }
 }
 </style>
