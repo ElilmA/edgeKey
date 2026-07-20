@@ -154,3 +154,15 @@ cdk.out
 
 # 本地SQLite数据库
 prisma/db.sqlite
+
+# Public portfolio safety boundary
+.ai/
+memory-bank/
+.playwright-mcp/
+*.pem
+*.key
+*.p12
+*.pfx
+*.db
+*.sqlite*
+backups/

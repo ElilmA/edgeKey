@@ -3,6 +3,26 @@
 
 # EdgeKey
 
+## Portfolio fork additions by Le Li
+
+This fork preserves the upstream MIT license and attribution to
+[`34892002/edgeKey`](https://github.com/34892002/edgeKey). The commits ahead of
+upstream are a production-oriented second-development case study:
+
+- public product search across name, subtitle, and category, with accessible
+  keyboard navigation and a responsive mobile header;
+- server-side admin filtering and pagination, inline category/sort maintenance,
+  and a complete-list drag-sort workflow with stale-list protection;
+- encrypted AES-256-GCM backup rotation primitives with checksum verification
+  and rollback when object or manifest publication fails;
+- a read-only CI release gate for tests, build, dependency audit, secret scans,
+  and Cloudflare deployment dry-run.
+
+No production database, customer data, Cloudflare resource ID, `.ai/` notes,
+credentials, or private deployment configuration is included. See
+[docs/portfolio-contributions.md](docs/portfolio-contributions.md) for the
+responsibility boundary and verification commands.
+
 EdgeKey 是一套有vike框架开发，可直接部署到 Cloudflare 的一体化全栈卡密商城系统：同一套代码同时包含前端页面、SSR 渲染、后端 API / 数据变更入口，并由 Cloudflare Workers 运行。
 
 ## 功能特性
