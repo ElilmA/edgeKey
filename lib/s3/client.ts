@@ -130,12 +130,17 @@ export class S3Client {
   /**
    * Upload a file to S3
    */
-  async putObject(key: string, body: ArrayBuffer | Uint8Array | string, contentType: string): Promise<Response> {
+  async putObject(
+    key: string,
+    body: ArrayBuffer | Uint8Array | string,
+    contentType: string,
+    options?: { cacheControl?: string },
+  ): Promise<Response> {
     const url = this.buildUrl(key);
 
     const headers: Record<string, string> = {
       "Content-Type": contentType,
-      "Cache-Control": this.config.cacheControl,
+      "Cache-Control": options?.cacheControl ?? this.config.cacheControl,
     };
 
     let response: Response;
